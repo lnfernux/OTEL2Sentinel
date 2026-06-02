@@ -21,12 +21,7 @@ Create a minimal setup with:
 
 ```mermaid
 flowchart LR
-    subgraph Clients["Local coding agents"]
-        VSC["VS Code Copilot"]
-        CC["Claude Code"]
-        CCW["Claude Cowork"]
-        OFC["Office agents"]
-    end
+    AGENT["Local coding agents"]
 
     subgraph Azure["Azure subscription"]
         direction LR
@@ -55,10 +50,7 @@ flowchart LR
         CACL[("ContainerAppConsoleLogs_CL<br/>(platform logs)")]
     end
 
-    VSC -- "OTLP/HTTP + Bearer" --> RCV
-    CC  -- "OTLP/HTTP + Bearer" --> RCV
-    CCW -- "OTLP/HTTP + Bearer" --> RCV
-    OFC -- "OTLP/HTTP + Bearer" --> RCV
+    AGENT -- "OTLP/HTTP + Bearer" --> RCV
 
     ACR -. image pull .-> CA
     S_CONN -. env var .-> EXP_AM
