@@ -1,0 +1,15 @@
+{
+  "env": {
+    "CLAUDE_CODE_ENABLE_TELEMETRY": "1",
+    "OTEL_METRICS_EXPORTER": "none",
+    "OTEL_LOGS_EXPORTER": "otlp",
+    "OTEL_TRACES_EXPORTER": "none",
+    "OTEL_EXPORTER_OTLP_PROTOCOL": "http/protobuf",
+    "OTEL_EXPORTER_OTLP_ENDPOINT": "https://<collector-fqdn>",
+    "OTEL_EXPORTER_OTLP_HEADERS": "Authorization=Bearer <shared-secret>",
+    "OTEL_LOG_USER_PROMPTS": "0",
+    "OTEL_LOG_TOOL_DETAILS": "0",
+    "OTEL_LOG_TOOL_CONTENT": "0",
+    "OTEL_LOG_RAW_API_BODIES": "0"
+  }
+}

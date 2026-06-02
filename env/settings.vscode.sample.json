@@ -1,0 +1,7 @@
+{
+  "github.copilot.chat.otel.enabled": true,
+  "github.copilot.chat.otel.exporterType": "otlp-http",
+  "github.copilot.chat.otel.otlpEndpoint": "https://<collector-fqdn>",
+  "github.copilot.chat.otel.captureContent": false,
+  "github.copilot.chat.otel.maxAttributeSizeChars": 4096
+}
