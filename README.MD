@@ -84,6 +84,8 @@ flowchart LR
 
 ### 2. Deploy all infrastructure and collector
 
+If some of the resources already exist (like `ResourceGroup` and `LogAnalyticsWorkspace`) just provide them instead of the generic names given here. If a resource is found the script *should* recognize it and just use it instead of deploying a new one. You can also just deploy the stack as a standalone collector.
+
 Run from repository root:
 
 ```powershell
