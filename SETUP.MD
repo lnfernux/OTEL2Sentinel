@@ -85,3 +85,54 @@ Optional smoke test:
   - If using logs-only mode, metrics and traces are intentionally dropped.
 - ACR image pull errors:
   - Verify ACR credentials and app registry settings.
+
+## Microsoft-native OTLP variant (side-by-side)
+
+The original collector exports to Application Insights via the `azuremonitor` exporter using a connection string. Microsoft's native OTLP ingestion path (announced 2026-06) instead has the collector POST OTLP directly to a Data Collection Endpoint backed by a Data Collection Rule, authenticated with Microsoft Entra via the [Azure Authentication extension](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/extension/azureauthextension). See the [Learn doc](https://learn.microsoft.com/azure/azure-monitor/containers/opentelemetry-protocol-ingestion).
+
+This variant lives in [collector-msft/](collector-msft/) and [infra-msft/cli/](infra-msft/cli/). The original collector and infra are untouched.
+
+### What's different
+
+- Exporter: `otlp_http/azuremonitor` -> DCE (instead of `azuremonitor` -> App Insights connection string).
+- Auth: Container App system-assigned managed identity with `Monitoring Metrics Publisher` on the DCR.
+- No `APPLICATIONINSIGHTS_CONNECTION_STRING` secret on the Container App.
+- Data lands in OTel-semantic streams (`Microsoft-OTLP-Logs` / `Microsoft-OTLP-Traces`) rather than `AppTraces` / `AppDependencies`. Existing KQL from the original path does not port 1:1.
+- Collector pinned to 0.153.0 to cover the 0.148.0+ requirement for `managed_identity: {}`.
+- Logs, traces, and metrics all follow the Azure Monitor OTLP path. If a source emits cumulative OTLP metrics, add `cumulativetodelta` as described in the Learn doc.
+
+### Prerequisites you create first
+
+The infra scripts assume the DCE + DCR already exist. Two supported ways:
+
+1. **App Insights with OTLP support: On** (recommended). In the Azure portal, create a new Application Insights resource and toggle `OTLP support` to `On` on the Basics tab. After deployment, the Overview blade exposes the DCR resource ID and the logs, traces, and metrics OTLP endpoint URLs.
+2. **Manual** via the ARM template in [AzureMonitorCommunity](https://github.com/microsoft/AzureMonitorCommunity/blob/master/Azure%20Services/Azure%20Monitor/OpenTelemetry/OTLP_DCE_DCR_ARM_Template.txt).
+
+Capture: the DCR resource ID, the logs OTLP endpoint, the traces OTLP endpoint, and the metrics OTLP endpoint.
+
+If you use the portal-generated App Insights path, copy those endpoint URLs exactly as shown in **OTLP Connection Info**. Do not reconstruct or normalize the stream names by hand.
+
+### Deploy
+
+```powershell
+./infra-msft/cli/deploy-all-msft.ps1 `
+  -SubscriptionId "<subscription-guid>" `
+  -Location "westeurope" `
+  -ResourceGroupName "rg-otel2sentinel-msft" `
+  -LogAnalyticsWorkspaceName "law-otel2sentinel-msft" `
+  -AcrName "acrotel2sentinelmsft" `
+  -ContainerAppsEnvironmentName "cae-otel2sentinel-msft" `
+  -CollectorAppName "ca-otel-collector-msft" `
+  -DcrResourceId "/subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.Insights/dataCollectionRules/<dcr>" `
+  -OtlpLogsEndpoint "<exact-logs-endpoint-url>" `
+  -OtlpTracesEndpoint "<exact-traces-endpoint-url>" `
+  -OtlpMetricsEndpoint "<exact-metrics-endpoint-url>" `
+  -ImageTag "v1"
+```
+
+The orchestrator reuses the shared `infra/cli/01` (resource group), `03` (ACR), and `04` (Container Apps environment) scripts, then runs the Microsoft-variant `05` (deploy with SAMI), `06` (grant RBAC on the DCR), and `07` (verify).
+
+### Source-side caveats unchanged
+
+Source agents still POST to the Container App's public FQDN with no enforced auth on the receiver. The bearer-token gap from the original auth model still applies; address it with API Management, Front Door, or the `bearertokenauth` extension if needed.
+

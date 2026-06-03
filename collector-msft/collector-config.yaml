@@ -1,0 +1,55 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 512
+    spike_limit_mib: 128
+  batch:
+    send_batch_size: 1024
+    timeout: 5s
+  resource:
+    attributes:
+      - key: deployment.environment
+        value: azure-container-apps
+        action: upsert
+
+extensions:
+  # System-assigned managed identity on the Container App.
+  # Requires the MI to hold "Monitoring Metrics Publisher" on the DCR.
+  azure_auth:
+    managed_identity: {}
+    scopes:
+      - https://monitor.azure.com/.default
+
+exporters:
+  otlp_http/azuremonitor:
+    logs_endpoint: ${env:OTLP_LOGS_ENDPOINT}
+    traces_endpoint: ${env:OTLP_TRACES_ENDPOINT}
+    metrics_endpoint: ${env:OTLP_METRICS_ENDPOINT}
+    auth:
+      authenticator: azure_auth
+  debug:
+    verbosity: normal
+
+service:
+  extensions: [azure_auth]
+  pipelines:
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, resource, batch]
+      exporters: [otlp_http/azuremonitor, debug]
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, resource, batch]
+      exporters: [otlp_http/azuremonitor]
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, resource, batch]
+      exporters: [otlp_http/azuremonitor]

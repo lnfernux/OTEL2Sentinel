@@ -46,7 +46,7 @@ flowchart LR
         end
 
         AI["Workspace-based<br/>Application Insights"]
-        LAW[("Log Analytics workspace<br/>AppTraces / AppDependencies")]
+        LAW[("Log Analytics workspace<br/>AppTraces (+ AppDependencies if traces enabled)")]
         CACL[("ContainerAppConsoleLogs_CL<br/>(platform logs)")]
     end
 
@@ -69,8 +69,10 @@ flowchart LR
 
 ## Repository structure
 
-- [collector/](collector): collector Docker image and runtime config
-- [infra/cli/](infra/cli): Azure CLI deployment scripts (PowerShell)
+- [collector/](collector): collector Docker image and runtime config (original path: `azuremonitor` exporter + App Insights connection string)
+- [collector-msft/](collector-msft): Microsoft-native OTLP variant (`otlp_http/azuremonitor` exporter + Entra auth via system-assigned managed identity against a DCR). See [SETUP.MD](SETUP.MD#microsoft-native-otlp-variant-side-by-side).
+- [infra/cli/](infra/cli): Azure CLI deployment scripts (PowerShell) for the original collector
+- [infra-msft/cli/](infra-msft/cli): deployment scripts for the Microsoft-native variant. Reuses `infra/cli/01`, `03`, `04`.
 - [docs/](docs): admin runbook and implementation guidance
 - [env/](env): source agent env and settings templates
 
@@ -118,43 +120,38 @@ Optional smoke test from a local machine:
 
 ## Expected Log Analytics tables (logs-only mode)
 
-When this repo runs in logs-only mode, telemetry about user prompts/messages, agent behavior, and tool executions should land in:
+When this repo runs in its default logs-only mode, telemetry about user prompts/messages, agent behavior, and tool-call events should land in:
 
 - `AppTraces` (primary table for OTEL logs exported through Application Insights)
-- `AppDependencies` (expected for tool/function execution spans, for example `execute_tool run_in_terminal`)
 
-Tables that should not be populated by this collector pipeline for metrics/traces in logs-only mode:
+In the current default config, `AppDependencies` is not expected because the collector does not define a traces pipeline. If you add a traces pipeline later, internal/client spans such as `execute_tool ...` can show up there.
 
+Tables that should not be populated by the default collector config:
+
+- `AppDependencies` (unless you enable a traces pipeline)
 - `AppMetrics`
-- `AppRequests` (unless another source sends request telemetry)
+- `AppRequests` (unless another source sends request telemetry or you enable traces for server/consumer spans)
 - `AppExceptions` (unless a source emits exception telemetry)
 
 Note: Azure platform/runtime data for Container Apps can still appear in platform tables (for example `ContainerAppConsoleLogs_CL`). Those are infrastructure logs, not the agent OTEL logs.
 
-Example KQL for recent agent and tool activity:
+Example KQL for recent agent activity in the default logs-only config:
 
 ```kusto
 let since = ago(1h);
-let traceEvents =
-	AppTraces
-	| where TimeGenerated > since
-	| where Message has_any ("tool.call", "agent.turn", "copilot_chat")
-	| project TimeGenerated, Table="AppTraces", Signal="log", Name=tostring(Message), Success=bool(null), DurationMs=real(null), Properties;
-let toolEvents =
-	AppDependencies
-	| where TimeGenerated > since
-	| where Name startswith "execute_tool" or tostring(Properties["gen_ai.operation.name"]) == "execute_tool"
-	| project TimeGenerated, Table="AppDependencies", Signal="tool", Name, Success, DurationMs, Properties;
-union traceEvents, toolEvents
+AppTraces
+| where TimeGenerated > since
+| where Message has_any ("tool.call", "agent.turn", "copilot_chat")
+| project TimeGenerated, Table="AppTraces", Signal="log", Name=tostring(Message), Properties
 | order by TimeGenerated desc
 ```
 
-Included telemetry in this setup:
+Included telemetry in this default setup:
 
 - Session lifecycle and turn events (for example `copilot_chat.session.start` and `copilot_chat.agent.turn`)
 - Tool call events (for example `copilot_chat.tool.call` with tool name, success flag, and duration)
-- Tool execution spans represented as dependencies (for example `execute_tool run_in_terminal` in `AppDependencies`)
 - Operational metadata in `Properties` (for example `event.name`, `session.id`, `gen_ai.tool.name`, `duration_ms`, token counts, and status fields)
+- If you enable a traces pipeline, tool execution spans can appear as dependencies (for example `execute_tool run_in_terminal` in `AppDependencies`)
 
 Important: this is source-driven telemetry. The collector forwards what the source emits.
 
