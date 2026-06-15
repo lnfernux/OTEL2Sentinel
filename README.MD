@@ -155,7 +155,6 @@ More detail on this path is in [SETUP.MD](SETUP.MD#microsoft-native-otlp-variant
 
 Use templates:
 
-- [.vscode/settings.json](.vscode/settings.json) for workspace-level VS Code telemetry wiring
 - [env/example.vscode.env](env/example.vscode.env)
 - [env/example.claude.env](env/example.claude.env)
 - [env/settings.vscode.sample.json](env/settings.vscode.sample.json)
