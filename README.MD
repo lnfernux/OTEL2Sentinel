@@ -266,7 +266,6 @@ This scaffold supports two options:
 ## Additional docs
 
 - [SETUP.MD](SETUP.MD)
-- [docs/vscode-byok-language-models.md](docs/vscode-byok-language-models.md)
 - [docs/source-agent-config-vscode.md](docs/source-agent-config-vscode.md)
 - [docs/source-agent-config-claude.md](docs/source-agent-config-claude.md)
 - [docs/source-agent-config-claude-cowork.md](docs/source-agent-config-claude-cowork.md)
