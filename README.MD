@@ -39,11 +39,15 @@ flowchart LR
         DCR --> OTELTABLES["OTelLogs / OTelSpans / OTelEvents"]
 ```
 
-What is different between the two versions?
+### What is different between the two versions?
 
 - The OG (collector/infra) path has the lowest-friction setup with more obscure Application Insights-backed tables and the weakest auth using connection string.
 - The updated (collector-msft/infra-msft) path is Microsoft-recommended, native with Azure Monitor's newer OTLP ingestion flow, Entra-based auth, and OTel semantic tables.
 - Source-side configuration is mostly the same either way as the main change is after the collector receives the data.
+
+## Testing
+
+This project (both paths) have been tested and verified for VSCode extensions and Claude Code thus far. OfficeAgents and Claude Cowork is supported in theory based on the documents provided by Anthropic, but the original author of this repo has no access to test this and thus the documents outlining the configuration is an AI-generated consolidation of how to set it up. If anyone can test and verify, please feel free to push a PR with results/changes needed.
 
 ## Repository structure
 
