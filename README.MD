@@ -12,16 +12,18 @@ Create a minimal setup with:
 - Azure Monitor destination using one of two supported paths:
     - workspace-based Application Insights connected to Log Analytics
     - Microsoft-native OTLP ingestion through a Data Collection Endpoint and Data Collection Rule
-- Source config examples for VS Code Copilot, Claude Code, Claude Cowork, and Office agents
+- Source config examples for VSCode extensions such as Github Copilot, Claude Code, and Office agents
 
 ## Two supported paths
 
-This repository supports two ways to get agent OTLP data into Azure Monitor. Both start the same way, with local agents sending OTLP to a collector running in Azure Container Apps. The difference is the collector's Azure-side exporter, auth model, and the tables you query afterward.
+This repository supports two ways to get agent OTLP data into Azure Monitor. Both start the same way, with local agents sending OTLP to a collector running in Azure Container Apps. The difference is the collector's Azure-side exporter, auth model, and the tables.
+
+The repository was originally created with the App Insights path, but **the Microsoft-native OTLP path is suggested for production usage.**
 
 | Path | Use when | Collector and infra | Azure-side auth | Query surface |
 | --- | --- | --- | --- | --- |
-| Original App Insights path | You want the simpler path and existing Application Insights-style queries | [collector/](collector) and [infra/cli/](infra/cli) | Application Insights connection string stored on the Container App | `AppTraces`, `AppDependencies`, and other App Insights tables |
-| Microsoft-native OTLP path | You want the newer Azure Monitor OTLP ingestion model and OTel semantic tables | [collector-msft/](collector-msft) and [infra-msft/cli/](infra-msft/cli) | System-assigned managed identity with DCR RBAC | `OTelLogs`, `OTelSpans`, `OTelEvents` |
+| App Insights path | Simpler | [collector/](collector) and [infra/cli/](infra/cli) | Application Insights connection string stored on the Container App | `AppTraces`, `AppDependencies`, and other App Insights tables |
+| Microsoft-native OTLP path | You want native Azure Monitor OTLP ingestion model and OTel semantic tables | [collector-msft/](collector-msft) and [infra-msft/cli/](infra-msft/cli) | System-assigned managed identity with DCR RBAC | `OTelLogs`, `OTelSpans`, `OTelEvents` |
 
 ```mermaid
 flowchart LR
@@ -37,68 +39,11 @@ flowchart LR
         DCR --> OTELTABLES["OTelLogs / OTelSpans / OTelEvents"]
 ```
 
-In practice, the split is straightforward:
+What is different between the two versions?
 
-- Choose the OG (collector/infra) path if you want the lowest-friction setup and you are happy querying Application Insights-backed tables.
-- Choose the updated (collector-msft/infra-msft) path if you want Azure Monitor's newer OTLP ingestion flow, Entra-based auth, and OTel semantic tables.
-- Source-side configuration is mostly the same either way. The main change is after the collector receives the data.
-
-## Original path architecture
-
-The detailed diagram below shows the original App Insights-based path used by [collector/](collector) and [infra/cli/](infra/cli). The Microsoft-native variant swaps the exporter and destination as shown in the comparison diagram above.
-
-1. Local agents export OTLP telemetry over HTTPS.
-2. Collector runs in Azure Container Apps and receives OTLP on HTTP (4318) and gRPC (4317).
-3. Collector exports to workspace-based Application Insights.
-4. Data is available through Application Insights and Log Analytics.
-
-```mermaid
-flowchart LR
-    AGENT["Local coding agents"]
-
-    subgraph Azure["Azure subscription"]
-        direction LR
-
-        ACR[("Azure Container Registry<br/>collector image")]
-
-        subgraph CAE["Container Apps environment"]
-            subgraph CA["Container App: otel-collector"]
-                direction TB
-                RCV["OTLP receivers<br/>HTTP :4318 / gRPC :4317"]
-                PROC["Processors<br/>memory_limiter → resource → batch"]
-                EXP_AM["Exporter: azuremonitor"]
-                EXP_DBG["Exporter: debug (stdout)"]
-                RCV --> PROC --> EXP_AM
-                PROC --> EXP_DBG
-            end
-        end
-
-        subgraph Secrets["Container App secrets"]
-            S_CONN["APPLICATIONINSIGHTS_CONNECTION_STRING"]
-            S_AUTH["REQUIRED_OTEL_AUTH_HEADER<br/>(not enforced today)"]
-        end
-
-        AI["Workspace-based<br/>Application Insights"]
-        LAW[("Log Analytics workspace<br/>AppTraces (+ AppDependencies if traces enabled)")]
-        CACL[("ContainerAppConsoleLogs_CL<br/>(platform logs)")]
-    end
-
-    AGENT -- "OTLP/HTTP + Bearer" --> RCV
-
-    ACR -. image pull .-> CA
-    S_CONN -. env var .-> EXP_AM
-    S_AUTH -. env var .-> CA
-
-    EXP_AM --> AI --> LAW
-    EXP_DBG -. stdout .-> CACL
-```
-
-### Auth handling (for future reference)
-
-- Sources are configured to send `Authorization=Bearer <shared-secret>` in `OTEL_EXPORTER_OTLP_HEADERS` as a client-side contract.
-- Deployment stores the shared token on the Container App as the `auth-header` secret and exposes it to the collector container as `REQUIRED_OTEL_AUTH_HEADER` for future use.
-- Collector-side bearer auth is **not** enforced in [collector/collector-config.yaml](collector/collector-config.yaml). The current config exposes OTLP receivers without an `auth` block.
-- Collector-side enforcement is left off by default for deploy-time convenience. VS Code Copilot **can** send the bearer header via `OTEL_EXPORTER_OTLP_HEADERS` (see the official [Monitor agent usage with OpenTelemetry](https://code.visualstudio.com/docs/copilot/guides/monitoring-agents) guide). See [SETUP.MD](SETUP.MD) for the pass-2 enforcement path.
+- The OG (collector/infra) path has the lowest-friction setup with more obscure Application Insights-backed tables and the weakest auth using connection string.
+- The updated (collector-msft/infra-msft) path is Microsoft-recommended, native with Azure Monitor's newer OTLP ingestion flow, Entra-based auth, and OTel semantic tables.
+- Source-side configuration is mostly the same either way as the main change is after the collector receives the data.
 
 ## Repository structure
 
@@ -160,7 +105,7 @@ Use templates:
 - [env/settings.vscode.sample.json](env/settings.vscode.sample.json)
 - [env/settings.claude.sample.json](env/settings.claude.sample.json)
 
-Detailed guidance is in [docs/source-agent-config-vscode.md](docs/source-agent-config-vscode.md), [docs/source-agent-config-claude.md](docs/source-agent-config-claude.md), [docs/source-agent-config-claude-cowork.md](docs/source-agent-config-claude-cowork.md), and [docs/source-agent-config-office-agents.md](docs/source-agent-config-office-agents.md).
+Detailed guidance is in [docs/source-agent-config-vscode.md](docs/source-agent-config-vscode.md), [docs/source-agent-config-claude.md](docs/source-agent-config-claude.md) and [docs/source-agent-config-office-agents.md](docs/source-agent-config-office-agents.md).
 
 ### 5. Validate
 
@@ -231,7 +176,7 @@ If you deploy the Microsoft-native variant, the collector writes to Azure Monito
 - `OTelSpans`
 - `OTelEvents`
 
-Example KQL:
+Example KQL (not sure why I added this, feel free to add some better examples here):
 
 ```kusto
 OTelLogs
@@ -244,7 +189,9 @@ OTelEvents
 | take 50
 ```
 
-## Content capture (`captureContent`) for VS Code Copilot
+## Content capture 
+
+This refers specifically to (`captureContent`) for VS Code Copilot, but this is applicable for most agents where there's multiple specific settings for capturing content. 
 
 The VS Code Copilot OTel integration is controlled by `github.copilot.chat.otel.captureContent` (or `COPILOT_OTEL_CAPTURE_CONTENT=true`). It is **off by default** and this repo's templates keep it off.
 
@@ -267,7 +214,6 @@ This scaffold supports two options:
 - [SETUP.MD](SETUP.MD)
 - [docs/source-agent-config-vscode.md](docs/source-agent-config-vscode.md)
 - [docs/source-agent-config-claude.md](docs/source-agent-config-claude.md)
-- [docs/source-agent-config-claude-cowork.md](docs/source-agent-config-claude-cowork.md)
 - [docs/source-agent-config-office-agents.md](docs/source-agent-config-office-agents.md)
 
 ## Alternative outside this repo
@@ -277,3 +223,60 @@ If you do not want a central collector in Container Apps, you can skip this repo
 ![](https://learn.microsoft.com/en-gb/azure/azure-monitor/app/media/app-insights-overview/app-insights-overview-blowout.svg)
 
 Read more: [Introduction to Application Insights - OpenTelemetry observability.](https://learn.microsoft.com/en-gb/azure/azure-monitor/app/app-insights-overview?tabs=webapps#getting-started)
+
+## Original path architecture
+
+The detailed diagram below shows the original App Insights-based path used by [collector/](collector) and [infra/cli/](infra/cli). The Microsoft-native variant swaps the exporter and destination as shown in the comparison diagram above.
+
+1. Local agents export OTLP telemetry over HTTPS.
+2. Collector runs in Azure Container Apps and receives OTLP on HTTP (4318) and gRPC (4317).
+3. Collector exports to workspace-based Application Insights.
+4. Data is available through Application Insights and Log Analytics.
+
+```mermaid
+flowchart LR
+    AGENT["Local coding agents"]
+
+    subgraph Azure["Azure subscription"]
+        direction LR
+
+        ACR[("Azure Container Registry<br/>collector image")]
+
+        subgraph CAE["Container Apps environment"]
+            subgraph CA["Container App: otel-collector"]
+                direction TB
+                RCV["OTLP receivers<br/>HTTP :4318 / gRPC :4317"]
+                PROC["Processors<br/>memory_limiter → resource → batch"]
+                EXP_AM["Exporter: azuremonitor"]
+                EXP_DBG["Exporter: debug (stdout)"]
+                RCV --> PROC --> EXP_AM
+                PROC --> EXP_DBG
+            end
+        end
+
+        subgraph Secrets["Container App secrets"]
+            S_CONN["APPLICATIONINSIGHTS_CONNECTION_STRING"]
+            S_AUTH["REQUIRED_OTEL_AUTH_HEADER<br/>(not enforced today)"]
+        end
+
+        AI["Workspace-based<br/>Application Insights"]
+        LAW[("Log Analytics workspace<br/>AppTraces (+ AppDependencies if traces enabled)")]
+        CACL[("ContainerAppConsoleLogs_CL<br/>(platform logs)")]
+    end
+
+    AGENT -- "OTLP/HTTP + Bearer" --> RCV
+
+    ACR -. image pull .-> CA
+    S_CONN -. env var .-> EXP_AM
+    S_AUTH -. env var .-> CA
+
+    EXP_AM --> AI --> LAW
+    EXP_DBG -. stdout .-> CACL
+```
+
+### Auth handling (for future reference)
+
+- Sources are configured to send `Authorization=Bearer <shared-secret>` in `OTEL_EXPORTER_OTLP_HEADERS` as a client-side contract.
+- Deployment stores the shared token on the Container App as the `auth-header` secret and exposes it to the collector container as `REQUIRED_OTEL_AUTH_HEADER` for future use.
+- Collector-side bearer auth is **not** enforced in [collector/collector-config.yaml](collector/collector-config.yaml). The current config exposes OTLP receivers without an `auth` block.
+- Collector-side enforcement is left off by default for deploy-time convenience. VS Code Copilot **can** send the bearer header via `OTEL_EXPORTER_OTLP_HEADERS` (see the official [Monitor agent usage with OpenTelemetry](https://code.visualstudio.com/docs/copilot/guides/monitoring-agents) guide). See [SETUP.MD](SETUP.MD) for the pass-2 enforcement path.
