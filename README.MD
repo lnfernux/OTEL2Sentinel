@@ -215,6 +215,7 @@ This scaffold supports two options:
 - [docs/source-agent-config-vscode.md](docs/source-agent-config-vscode.md)
 - [docs/source-agent-config-claude.md](docs/source-agent-config-claude.md)
 - [docs/source-agent-config-office-agents.md](docs/source-agent-config-office-agents.md)
+- [docs/source-agent-config-claude-cowork.md](docs/source-agent-config-claude-cowork.md)
 
 ## Alternative outside this repo
 
