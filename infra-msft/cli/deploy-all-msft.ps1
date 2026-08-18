@@ -32,7 +32,9 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$OtlpTracesEndpoint,
 
-    [Parameter(Mandatory = $true)]
+    # Optional. Metrics require an Azure Monitor workspace behind the DCR.
+    # Omit it to deploy a logs and traces collector.
+    [Parameter(Mandatory = $false)]
     [string]$OtlpMetricsEndpoint,
 
     [Parameter(Mandatory = $false)]

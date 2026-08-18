@@ -100,6 +100,7 @@ This variant lives in [collector-msft/](collector-msft/) and [infra-msft/cli/](i
 - Data lands in OTel-semantic streams (`Microsoft-OTLP-Logs` / `Microsoft-OTLP-Traces`) rather than `AppTraces` / `AppDependencies`. Existing KQL from the original path does not port 1:1.
 - Collector pinned to 0.153.0 to cover the 0.148.0+ requirement for `managed_identity: {}`.
 - Logs, traces, and metrics all follow the Azure Monitor OTLP path. If a source emits cumulative OTLP metrics, add `cumulativetodelta` as described in the Learn doc.
+- Metrics are optional, because the metrics stream lands in an Azure Monitor workspace rather than a Log Analytics workspace. Omit `-OtlpMetricsEndpoint` and the collector builds from [collector-msft/collector-config-no-metrics.yaml](collector-msft/collector-config-no-metrics.yaml) with only the logs and traces pipelines. Logs and traces need no Azure Monitor workspace.
 
 ### Prerequisites you create first
 
@@ -108,7 +109,7 @@ The infra scripts assume the DCE + DCR already exist. Two supported ways:
 1. **App Insights with OTLP support: On** (recommended). In the Azure portal, create a new Application Insights resource and toggle `OTLP support` to `On` on the Basics tab. After deployment, the Overview blade exposes the DCR resource ID and the logs, traces, and metrics OTLP endpoint URLs.
 2. **Manual** via the ARM template in [AzureMonitorCommunity](https://github.com/microsoft/AzureMonitorCommunity/blob/master/Azure%20Services/Azure%20Monitor/OpenTelemetry/OTLP_DCE_DCR_ARM_Template.txt).
 
-Capture: the DCR resource ID, the logs OTLP endpoint, the traces OTLP endpoint, and the metrics OTLP endpoint.
+Capture: the DCR resource ID, the logs OTLP endpoint, the traces OTLP endpoint, and the metrics OTLP endpoint. The metrics endpoint is only needed if an Azure Monitor workspace backs the DCR.
 
 If you use the portal-generated App Insights path, copy those endpoint URLs exactly as shown in **OTLP Connection Info**. Do not reconstruct or normalize the stream names by hand.
 
