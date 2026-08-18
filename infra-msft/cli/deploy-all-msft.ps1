@@ -73,4 +73,4 @@ else {
 
 & "$PSScriptRoot\06-grant-dcr-rbac.ps1" -ResourceGroupName $ResourceGroupName -CollectorAppName $CollectorAppName -DcrResourceId $DcrResourceId
 
-& "$PSScriptRoot\07-verify-telemetry-otlp.ps1" -ResourceGroupName $ResourceGroupName -CollectorAppName $CollectorAppName -LogAnalyticsWorkspaceName $LogAnalyticsWorkspaceName
+& "$PSScriptRoot\07-verify-telemetry-otlp.ps1" -ResourceGroupName $ResourceGroupName -CollectorAppName $CollectorAppName -DcrResourceId $DcrResourceId -LogAnalyticsWorkspaceName $LogAnalyticsWorkspaceName
