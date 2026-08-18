@@ -181,6 +181,7 @@ If you deploy the Microsoft-native variant, the collector writes to Azure Monito
 - `OTelLogs`
 - `OTelSpans`
 - `OTelEvents`
+- `OTelResources` (one row per distinct resource, populated alongside spans)
 
 Example KQL (not sure why I added this, feel free to add some better examples here):
 

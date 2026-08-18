@@ -113,6 +113,33 @@ Capture: the DCR resource ID, the logs OTLP endpoint, the traces OTLP endpoint, 
 
 If you use the portal-generated App Insights path, copy those endpoint URLs exactly as shown in **OTLP Connection Info**. Do not reconstruct or normalize the stream names by hand.
 
+### Manual DCE and DCR constraints
+
+These apply to option 2 only, where you build the DCE and DCR yourself. Verified against a `northeurope` deployment on 2026-08-17.
+
+**DCR stream names and URL stream names are different strings.**
+
+| Place | Logs | Traces |
+| --- | --- | --- |
+| DCR `dataSources`, `directDataSources`, `dataFlows` | `Microsoft-OTel-Logs` | `Microsoft-OTel-Traces-Spans`, `-Events`, `-Resources` |
+| Ingestion URL path segment | `Microsoft-OTLP-Logs` | `Microsoft-OTLP-Traces` |
+
+A DCR stream name in the URL returns `400 InvalidStream`, while a URL stream name in the DCR fails ARM preflight. The Learn doc gives only the URL names and the AzureMonitorCommunity template only the DCR names, so neither shows that the two differ.
+
+**The DCE accepts protobuf only.** `Content-Type: application/json` returns `415` even for a well-formed OTLP/JSON payload, and only `application/x-protobuf` is accepted. This affects direct posts to the DCE. The collector's own receiver accepts JSON and re-encodes, so `07-send-synthetic-otlp.ps1` against the collector is unaffected.
+
+**An `applicationInsights` reference needs a `dataSources` block.** Referencing it solely from `directDataSources` fails preflight with `Application Insights reference 'applicationInsightsResource' is not used`, even though the collector exercises only `directDataSources`.
+
+**`az monitor data-collection rule show` returns an incomplete definition.** It pins an older API version, so `references`, `directDataSources` and the `dataSources` contents all read back empty. Read the deployed definition with REST instead:
+
+```powershell
+az rest --method get --url "https://management.azure.com/<dcr-resource-id>?api-version=2024-03-11" --query properties
+```
+
+**Metrics need an Azure Monitor workspace**, not a Log Analytics workspace. Logs and traces do not. Drop the metrics pipeline if you have no Azure Monitor workspace.
+
+**First-ingest latency is uneven.** New `OTel*` tables took between 3 and 30 minutes to become queryable, and not in a consistent order: `OTelResources` appeared first and `OTelLogs` last. Do not conclude data is dropped without waiting.
+
 ### Deploy
 
 ```powershell
