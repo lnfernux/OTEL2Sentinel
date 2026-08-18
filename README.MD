@@ -234,7 +234,7 @@ Read more: [Introduction to Application Insights - OpenTelemetry observability.]
 The detailed diagram below shows the original App Insights-based path used by [collector/](collector) and [infra/cli/](infra/cli). The Microsoft-native variant swaps the exporter and destination as shown in the comparison diagram above.
 
 1. Local agents export OTLP telemetry over HTTPS.
-2. Collector runs in Azure Container Apps and receives OTLP on HTTP (4318) and gRPC (4317).
+2. Collector runs in Azure Container Apps and receives OTLP on HTTP (4318).
 3. Collector exports to workspace-based Application Insights.
 4. Data is available through Application Insights and Log Analytics.
 
@@ -250,7 +250,7 @@ flowchart LR
         subgraph CAE["Container Apps environment"]
             subgraph CA["Container App: otel-collector"]
                 direction TB
-                RCV["OTLP receivers<br/>HTTP :4318 / gRPC :4317"]
+                RCV["OTLP receiver<br/>HTTP :4318"]
                 PROC["Processors<br/>memory_limiter → resource → batch"]
                 EXP_AM["Exporter: azuremonitor"]
                 EXP_DBG["Exporter: debug (stdout)"]
