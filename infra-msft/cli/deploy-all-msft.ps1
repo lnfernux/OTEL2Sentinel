@@ -32,7 +32,9 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$OtlpTracesEndpoint,
 
-    [Parameter(Mandatory = $true)]
+    # Optional. Metrics require an Azure Monitor workspace behind the DCR.
+    # Omit it to deploy a logs and traces collector.
+    [Parameter(Mandatory = $false)]
     [string]$OtlpMetricsEndpoint,
 
     [Parameter(Mandatory = $false)]
@@ -73,4 +75,4 @@ else {
 
 & "$PSScriptRoot\06-grant-dcr-rbac.ps1" -ResourceGroupName $ResourceGroupName -CollectorAppName $CollectorAppName -DcrResourceId $DcrResourceId
 
-& "$PSScriptRoot\07-verify-telemetry-otlp.ps1" -ResourceGroupName $ResourceGroupName -CollectorAppName $CollectorAppName -LogAnalyticsWorkspaceName $LogAnalyticsWorkspaceName
+& "$PSScriptRoot\07-verify-telemetry-otlp.ps1" -ResourceGroupName $ResourceGroupName -CollectorAppName $CollectorAppName -DcrResourceId $DcrResourceId -LogAnalyticsWorkspaceName $LogAnalyticsWorkspaceName

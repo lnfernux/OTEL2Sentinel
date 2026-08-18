@@ -100,17 +100,43 @@ This variant lives in [collector-msft/](collector-msft/) and [infra-msft/cli/](i
 - Data lands in OTel-semantic streams (`Microsoft-OTLP-Logs` / `Microsoft-OTLP-Traces`) rather than `AppTraces` / `AppDependencies`. Existing KQL from the original path does not port 1:1.
 - Collector pinned to 0.153.0 to cover the 0.148.0+ requirement for `managed_identity: {}`.
 - Logs, traces, and metrics all follow the Azure Monitor OTLP path. If a source emits cumulative OTLP metrics, add `cumulativetodelta` as described in the Learn doc.
+- Metrics are optional, because the metrics stream lands in an Azure Monitor workspace rather than a Log Analytics workspace. Omit `-OtlpMetricsEndpoint` and the collector builds from [collector-msft/collector-config-no-metrics.yaml](collector-msft/collector-config-no-metrics.yaml) with only the logs and traces pipelines. Logs and traces need no Azure Monitor workspace.
 
-### Prerequisites you create first
+### Prerequisites
 
 The infra scripts assume the DCE + DCR already exist. Two supported ways:
 
 1. **App Insights with OTLP support: On** (recommended). In the Azure portal, create a new Application Insights resource and toggle `OTLP support` to `On` on the Basics tab. After deployment, the Overview blade exposes the DCR resource ID and the logs, traces, and metrics OTLP endpoint URLs.
 2. **Manual** via the ARM template in [AzureMonitorCommunity](https://github.com/microsoft/AzureMonitorCommunity/blob/master/Azure%20Services/Azure%20Monitor/OpenTelemetry/OTLP_DCE_DCR_ARM_Template.txt).
 
-Capture: the DCR resource ID, the logs OTLP endpoint, the traces OTLP endpoint, and the metrics OTLP endpoint.
+Capture: the DCR resource ID, the logs OTLP endpoint, the traces OTLP endpoint, and the metrics OTLP endpoint. The metrics endpoint is only needed if an Azure Monitor workspace backs the DCR.
 
 If you use the portal-generated App Insights path, copy those endpoint URLs exactly as shown in **OTLP Connection Info**. Do not reconstruct or normalize the stream names by hand.
+
+### Manual DCE and DCR constraints
+
+These apply to option 2 only, where you build the DCE and DCR yourself. Verified against a `northeurope` deployment on 2026-08-17.
+
+**DCR stream names and URL stream names are different strings.**
+
+| Place | Logs | Traces |
+| --- | --- | --- |
+| DCR `dataSources`, `directDataSources`, `dataFlows` | `Microsoft-OTel-Logs` | `Microsoft-OTel-Traces-Spans`, `-Events`, `-Resources` |
+| Ingestion URL path segment | `Microsoft-OTLP-Logs` | `Microsoft-OTLP-Traces` |
+
+A DCR stream name in the URL returns `400 InvalidStream`, while a URL stream name in the DCR fails ARM preflight. The Learn doc gives only the URL names and the AzureMonitorCommunity template only the DCR names, so neither shows that the two differ.
+
+**The DCE accepts protobuf only.** `Content-Type: application/json` returns `415` even for a well-formed OTLP/JSON payload, and only `application/x-protobuf` is accepted. This affects direct posts to the DCE. The collector's own receiver accepts JSON and re-encodes, so `07-send-synthetic-otlp.ps1` against the collector is unaffected.
+
+**An `applicationInsights` reference needs a `dataSources` block.** Referencing it solely from `directDataSources` fails preflight with `Application Insights reference 'applicationInsightsResource' is not used`, even though the collector exercises only `directDataSources`.
+
+**`az monitor data-collection rule show` returns an incomplete definition.** It pins an older API version, so `references`, `directDataSources` and the `dataSources` contents all read back empty. Read the deployed definition with REST instead:
+
+```powershell
+az rest --method get --url "https://management.azure.com/<dcr-resource-id>?api-version=2024-03-11" --query properties
+```
+
+**Metrics need an Azure Monitor workspace**, not a Log Analytics workspace. Logs and traces do not. Drop the metrics pipeline if you have no Azure Monitor workspace.
 
 ### Deploy
 

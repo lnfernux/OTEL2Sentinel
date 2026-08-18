@@ -30,7 +30,6 @@ exporters:
   otlp_http/azuremonitor:
     logs_endpoint: ${env:OTLP_LOGS_ENDPOINT}
     traces_endpoint: ${env:OTLP_TRACES_ENDPOINT}
-    metrics_endpoint: ${env:OTLP_METRICS_ENDPOINT}
     auth:
       authenticator: azure_auth
   debug:
@@ -44,10 +43,6 @@ service:
       processors: [memory_limiter, resource, batch]
       exporters: [otlp_http/azuremonitor, debug]
     traces:
-      receivers: [otlp]
-      processors: [memory_limiter, resource, batch]
-      exporters: [otlp_http/azuremonitor]
-    metrics:
       receivers: [otlp]
       processors: [memory_limiter, resource, batch]
       exporters: [otlp_http/azuremonitor]

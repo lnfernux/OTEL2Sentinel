@@ -19,7 +19,9 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$OtlpTracesEndpoint,
 
-    [Parameter(Mandatory = $true)]
+    # Optional. Metrics require an Azure Monitor workspace behind the DCR.
+    # Omit it to deploy a logs and traces collector.
+    [Parameter(Mandatory = $false)]
     [string]$OtlpMetricsEndpoint,
 
     [Parameter(Mandatory = $false)]
@@ -37,9 +39,16 @@ if ($envProvisioningState -ne 'Succeeded') {
     throw "Managed environment '$ContainerAppsEnvironmentName' is '$envProvisioningState'. Collector app deployment requires a Succeeded environment."
 }
 
+$metricsEnabled = -not [string]::IsNullOrWhiteSpace($OtlpMetricsEndpoint)
+$collectorConfig = if ($metricsEnabled) { 'collector-config.yaml' } else { 'collector-config-no-metrics.yaml' }
+
+if (-not $metricsEnabled) {
+    Write-Host "No -OtlpMetricsEndpoint supplied. Building a logs and traces collector from $collectorConfig."
+}
+
 Push-Location "$PSScriptRoot\..\..\collector-msft"
 try {
-    az acr build --registry $AcrName --image "otel-collector-msft:$ImageTag" . | Out-Null
+    az acr build --registry $AcrName --image "otel-collector-msft:$ImageTag" --build-arg "COLLECTOR_CONFIG=$collectorConfig" . | Out-Null
 }
 finally {
     Pop-Location
@@ -50,9 +59,12 @@ $acrPassword = az acr credential show -n $AcrName --query "passwords[0].value" -
 
 $envVars = @(
     "OTLP_LOGS_ENDPOINT=$OtlpLogsEndpoint",
-    "OTLP_TRACES_ENDPOINT=$OtlpTracesEndpoint",
-    "OTLP_METRICS_ENDPOINT=$OtlpMetricsEndpoint"
+    "OTLP_TRACES_ENDPOINT=$OtlpTracesEndpoint"
 )
+
+if ($metricsEnabled) {
+    $envVars += "OTLP_METRICS_ENDPOINT=$OtlpMetricsEndpoint"
+}
 
 $collectorExists = $null
 try {
