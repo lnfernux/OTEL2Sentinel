@@ -127,7 +127,7 @@ Microsoft-native OTLP path:
 ./infra-msft/cli/07-verify-telemetry-otlp.ps1 -ResourceGroupName "rg-otel2sentinel-msft" -CollectorAppName "ca-otel-collector-msft" -DcrResourceId "/subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.Insights/dataCollectionRules/<dcr>" -LogAnalyticsWorkspaceName "law-otel2sentinel-msft"
 ```
 
-`-DcrResourceId` is how the script finds the workspace your telemetry actually lands in. `-LogAnalyticsWorkspaceName` points at the workspace behind Container App console logs, which never receives agent telemetry.
+`-DcrResourceId` is how the script finds the workspace your telemetry lands in. `-LogAnalyticsWorkspaceName` points at the workspace behind Container App console logs, which never receives agent telemetry.
 
 Optional smoke test from a local machine for either path:
 
