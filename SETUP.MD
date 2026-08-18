@@ -102,7 +102,7 @@ This variant lives in [collector-msft/](collector-msft/) and [infra-msft/cli/](i
 - Logs, traces, and metrics all follow the Azure Monitor OTLP path. If a source emits cumulative OTLP metrics, add `cumulativetodelta` as described in the Learn doc.
 - Metrics are optional, because the metrics stream lands in an Azure Monitor workspace rather than a Log Analytics workspace. Omit `-OtlpMetricsEndpoint` and the collector builds from [collector-msft/collector-config-no-metrics.yaml](collector-msft/collector-config-no-metrics.yaml) with only the logs and traces pipelines. Logs and traces need no Azure Monitor workspace.
 
-### Prerequisites you create first
+### Prerequisites
 
 The infra scripts assume the DCE + DCR already exist. Two supported ways:
 
@@ -137,8 +137,6 @@ az rest --method get --url "https://management.azure.com/<dcr-resource-id>?api-v
 ```
 
 **Metrics need an Azure Monitor workspace**, not a Log Analytics workspace. Logs and traces do not. Drop the metrics pipeline if you have no Azure Monitor workspace.
-
-**First-ingest latency is uneven.** New `OTel*` tables took between 3 and 30 minutes to become queryable, and not in a consistent order: `OTelResources` appeared first and `OTelLogs` last. Do not conclude data is dropped without waiting.
 
 ### Deploy
 
